@@ -36,7 +36,32 @@ jobs:
           containerAppName: album-api
           resourceGroup: album-containerapps
           imageToBuild: caf3e2e2c419acr.azurecr.io/album-api:${{ github.sha }}
-          
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    if: success()
+    steps:
+    - name: Check disk usage before cleanup
+      run: df -h
+    - name: Delete artifact
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ARTIFACT_ID=$(curl -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+        | jq -r '.artifacts[] | select(.name == "build-artifact") | .id')
+
+        if [ -n "$ARTIFACT_ID" ]; then
+          curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID
+        else
+          echo "Artifact not found"
+        fi
+    - name: Check disk usage after cleanup
+      run: df -h
             
 
      
